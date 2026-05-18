@@ -91,8 +91,8 @@
 \section{Proje Özeti}
 % ════════════════════════════════════════════════════════════════════════════
 
-Bu proje kapsamında, MSP432 mikrodenetleyici tabanlı bir akıllı ekosistem sistemi
-tasarlanmış ve gerçeklenmiştir. Sistem; termodinamik ve akustik sensörleri bir araya
+Bu proje kapsamında, mikrodenetleyici tabanlı bir akıllı ekosistem sistemi
+tasarlanmış ve hayata geçirilmiştir. Sistem; termodinamik ve akustik sensörleri bir araya
 getirerek sıradan bir yaşam alanını üç temel otonom işlev üzerinden yönetebilen bir
 platforma dönüştürmektedir:
 
@@ -102,7 +102,7 @@ platforma dönüştürmektedir:
   \item \textbf{Temassız Jest Kontrolü:} El kaydırma hareketiyle çalan şarkının
         ileri/geri değiştirilmesi.
   \item \textbf{Akustik Lamba Kontrolü:} El çırpma sesiyle ortam lambasının açılıp
-        kapatılması ve parlaklık ayarı.
+        kapatılması ve parlaklığının ayarlanması.
 \end{enumerate}
 
 % ════════════════════════════════════════════════════════════════════════════
@@ -128,7 +128,7 @@ ayrı bir donanımsal kesme vektörüne atanmıştır; bu sayede işlemci boşta
 \texttt{\_\_low\_power\_mode\_0()} durumunda bekleyebilmekte ve gereksiz güç tüketimi
 önlenmektedir.
 
-\subsection{Durum Makinesi}
+\subsection{Durum Şeması}
 
 Sistemin genel akışı aşağıdaki durum geçişleriyle modellenmiştir:
 
@@ -140,7 +140,7 @@ Sistemin genel akışı aşağıdaki durum geçişleriyle modellenmiştir:
   \texttt{IDLE}         & İçecek sıcaklığı < eşik           & \texttt{IDLE} \\
   \texttt{IDLE}         & İçecek sıcaklığı $\geq$ eşik      & \texttt{MUSIC\_ON} \\
   \texttt{MUSIC\_ON}    & Jest algılama (sağ/sol)            & \texttt{MUSIC\_ON} \\
-  \texttt{MUSIC\_ON}    & El çırpma                          & \texttt{LAMP\_TOGGLE} \\
+  \texttt{MUSIC\_ON | IDLE }    & El çırpma                          & \texttt{LAMP\_TOGGLE} \\
   \texttt{LAMP\_TOGGLE} & —                                  & \texttt{MUSIC\_ON} \\
   \bottomrule
 \end{tabular}
@@ -175,49 +175,40 @@ Sistemin genel akışı aşağıdaki durum geçişleriyle modellenmiştir:
 
 \subsection{Çalışma Prensibi}
 
-DS18B20 sıcaklık sensörü, 1-Wire protokolü üzerinden MSP432'ye periyodik olarak sıcaklık
-verisi iletmektedir. Ölçüm döngüsü donanımsal Timer\_A kesmesi aracılığıyla
-$\Delta t = 500\,\mathrm{ms}$'de bir tetiklenmektedir. Sensörden okunan ham değer
-aşağıdaki dönüşüm formülüyle santigrat dereceye çevrilmektedir:
-
-\begin{equation}
-  T_{\mathrm{C}} = \frac{\mathrm{RawADC} \times V_{\mathrm{ref}}}{4096} \times k
-  \label{eq:sicaklik}
-\end{equation}
-
-Dönüştürülen değer kullanıcı tarafından belirlenen $T_{\mathrm{eşik}}$ ile
-kıyaslanmaktadır. Koşul sağlandığında sistem \texttt{IDLE} durumundan çıkarak
-Bluetooth modülünü tetikler.
+\textbf{DS18B20} sıcaklık sensörü, \textbf{1-Wire} protokolü üzerinden \textbf{Arduino Uno}'ya periyodik olarak sıcaklık verisi iletmektedir. Ölçüm döngüsü, ana program akışı içerisinde yazılımsal bir gecikme (\textbf{delay(2000)}) aracılığıyla 2 saniyede bir tetiklenmektedir. Sensörden okunan dijital veriler, harici bir ADC dönüşüm formülüne gerek kalmadan \textbf{DallasTemperature} kütüphanesi kullanılarak doğrudan santigrat dereceye çevrilmektedir.
+\\ \\
+Dönüştürülen bu değer, sistemde belirlenen hedef sıcaklık eşiği (örneğin 10°C) ile kıyaslanmaktadır. Sıcaklık eşiğinin altına inildiğinde ve ilgili bayrak değişkeni (\textbf{sarkiCalindi} ) kontrol edildiğinde sistem bekleme durumundan çıkarak \textbf{Bluetooth} modülünü tetikler.
 
 \subsection{Bluetooth Haberleşmesi (HC-05 / UART)}
 
-MSP432'nin EUSCI\_A1 UART modülü, HC-05 modülüne $9600\,\mathrm{baud}$ hızında
-bağlanmaktadır. Sıcaklık eşiği aşıldığında UART üzerinden \texttt{PLAY} komutu
-gönderilmekte; bilgisayardaki Python betiği bu komutu alarak medya oynatıcıyı
-başlatmaktadır.
+Sistemdeki haberleşme, donanımsal çakışmaları ve zamanlama hatalarını önlemek amacıyla \textbf{SoftwareSerial} kütüphanesi kullanılarak \textbf{D10 (RX)} ve \textbf{D11 (TX) }pinleri üzerinden 9600 baud hızında gerçekleştirilmektedir. Sıcaklık eşiği aşıldığında \textbf{HC-05} modülü üzerinden "\textbf{PLAY\_MUSIC}" komutu gönderilmektedir. Bilgisayar ortamında arka planda çalışan Python uygulaması (\textbf{pyserial} ve \textbf{spotipy} kütüphaneleri ile) bu portu dinlemekte ve komutu yakaladığı an yetkilendirilmiş API üzerinden Spotify medyasını otonom olarak başlatmaktadır.
 
 \subsection{Kritik Kod Parçacığı}
 
 \begin{lstlisting}[style=cstyle, caption={Sıcaklık eşiği kontrolü ve UART tetiklemesi}]
-// Timer_A ISR - her 500 ms'de bir cagrilir
-void TA0_0_IRQHandler(void) {
-    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+void loop() {
+  sensors.requestTemperatures(); 
+  float anlikSicaklik = sensors.getTempCByIndex(0);
 
-    float temp = DS18B20_ReadTemp();   // 1-Wire okuma
-
-    if (temp <= TEMP_THRESHOLD && state == IDLE) {
-        state = MUSIC_ON;
-        UART_SendString("PLAY\r\n");   // HC-05 uzerinden komut gonder
-        OLED_Print("Muzik Basladi");
-    }
+  // Sicaklik limiti kontrolu ve UART uzerinden Python'u tetikleme
+  if (anlikSicaklik <= hedefSicaklik && !sarkiCalindi && anlikSicaklik > -50.0) {
+    display.setTextSize(1);
+    display.setCursor(0, 50);
+    display.println("Soguk! Muzik Caliyor");
+    
+    btSerial.println("PLAY_MUSIC"); // HC-05 uzerinden komut gonder
+    sarkiCalindi = true; 
+  } 
+  
+  display.display();
+  delay(2000); 
 }
 \end{lstlisting}
 
 \subsection{Kalibrasyon ve Test Sonuçları}
 
-Sensör, buz-su karışımında ($0\,^\circ\mathrm{C}$) ve oda sıcaklığında
-($25\,^\circ\mathrm{C}$) kalibre edilmiştir. Ortalama ölçüm hatası
-$\pm 0.3\,^\circ\mathrm{C}$ olarak belirlenmiştir.
+Sensör verileri, Arduino IDE Seri Port Ekranı ve I2C protokolüyle çalışan \textbf{ 0.96" OLED}  ekran üzerinden anlık olarak doğrulanmıştır. Oda sıcaklığında yapılan testlerde hedef sıcaklık eşiği yazılımsal olarak manipüle edilmiş, ayrıca buzlu su teması ile doğrudan fiziksel testler gerçekleştirilmiştir. Bu testler sonucunda \textbf{Bluetooth UART} komutunun terminale kayıpsız düştüğü ve bilgisayar üzerindeki Python kodunun müziği anında başlattığı doğrulanmıştır.
+
 
 % ════════════════════════════════════════════════════════════════════════════
 \section{Özellik 2: Temassız Jest Kontrolü ile Müzik Değiştirme}
