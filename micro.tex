@@ -18,6 +18,8 @@
 \usepackage{titlesec}
 \usepackage{enumitem}
 \usepackage{parskip}
+\usepackage[export]{adjustbox}
+
 
 \geometry{
   top=2.5cm, bottom=2.5cm,
@@ -69,15 +71,15 @@
   \centering
   \vspace*{1.5cm}
   {\Large \textbf{INF 340 MİKROİŞLEMCİLER}\par}
-  \vspace{0.5cm}
-  {\large Proje Son Raporu\par}
   \vspace{1.5cm}
-  {\LARGE \textbf{Akıllı Ekosistem:\\ Otonom İçecek ve Çevre Yönetimi}\par}
+  {\LARGE \textbf{Akıllı İçecek Otomasyonu}\par}
+    \vspace{0.5cm}
+  {\large Unutacağınız bir akıllı ev sistemi değil, bir DENEYİM!\par}
   \vspace{2cm}
   \begin{tabular}{ll}
-    \textbf{Ayşe Selen Göğüş}  & 23401063 \\[4pt]
-    \textbf{Resul Sanberk Kalko} & 23401068 \\[4pt]
-    \textbf{Erdem Ertan}         & 22401986 \\
+    \textbf{Resul Sanberk Kalko}  & 23401068 & Soğuk Algılama ve Müzik Açma\\[4pt]
+    \textbf{Ayşe Selen Göğüş} & 23401063 & Temassız Jest Kontrolü ile Müzik Değiştirme\\[4pt]
+    \textbf{Erdem Ertan}         & 22401986 & Akustik Lamba Kontrolü\\
   \end{tabular}
   \vfill
   {\large Mayıs 2026\par}
@@ -92,14 +94,14 @@
 % ════════════════════════════════════════════════════════════════════════════
 
 Bu proje kapsamında, mikrodenetleyici tabanlı bir akıllı ekosistem sistemi
-tasarlanmış ve hayata geçirilmiştir. Sistem; termodinamik ve akustik sensörleri bir araya
-getirerek sıradan bir yaşam alanını üç temel otonom işlev üzerinden yönetebilen bir
-platforma dönüştürmektedir:
+tasarlanmıştır. Sistem; termodinamik ve ışık sensörleri bir araya
+getirerek üç temel işlev üzerinden yönetebilen bir
+sisteme dönüştürmektedir:
 
 \begin{enumerate}[leftmargin=*, label=\arabic*.]
   \item \textbf{Soğuk Algılama ve Müzik Açma:} İçeceğin sıcaklığı hedef değere
         ulaştığında Bluetooth üzerinden otomatik müzik başlatılması.
-  \item \textbf{Temassız Jest Kontrolü:} El kaydırma hareketiyle çalan şarkının
+  \item \textbf{Temassız Jest Kontrolü:} El jestleriyle çalan şarkının
         ileri/geri değiştirilmesi.
   \item \textbf{Akustik Lamba Kontrolü:} El çırpma sesiyle ortam lambasının açılıp
         kapatılması ve parlaklığının ayarlanması.
@@ -109,42 +111,10 @@ platforma dönüştürmektedir:
 \section{Sistem Mimarisi}
 % ════════════════════════════════════════════════════════════════════════════
 
-Sistemin genel mimarisi Şekil~\ref{fig:mimari} üzerinde gösterilmiştir. MSP432 işlemcisi
-merkezi denetleyici görevi üstlenerek tüm sensörlerden veri toplamakta ve ilgili çevresel
-birimleri yönetmektedir.
+ESP32 ve Arduino Uno mikrodenetleyici bazlı mimari,  Spotify API desteğiyle ortak noktada buluşan birimler en sonunda istenilen deneyimi oluşturmuştur.\\ \\
 
-\begin{figure}[H]
-  \centering
-  % Gerçek sistem diyagramı buraya eklenecek:
-  % \includegraphics[width=0.85\textwidth]{mimari.png}
-  \fbox{\rule{0pt}{5cm}\rule{0.85\textwidth}{0pt}}
-  \caption{Sistem Blok Diyagramı}
-  \label{fig:mimari}
-\end{figure}
+Sıcaklık ölçen sensörler sayesinde içecek optimal sıcaklığa ulaştığında bilgilendirme amaçlı Bluetooth bağlantısı ile açılan müzik ışık sensörü düzeneğini kullanıma hazır hale getirir. Işık sensörleri ile ortam parlaklık seviyesi ölçülerek jest anı algılanıp olası ışık değişimlerine karşın bu parlaklık eşik değeri her 30 saniyede tekrar ölçülmektedir. Her iki sistemdeki durum bilgilendirmeleri aynı zamanda OLED ekranlarla görünülebilir kılınmıştır.
 
-Sistem, sürekli bekleme döngüleri yerine \textbf{kesme (Interrupt) tabanlı} bir mimari
-üzerine kurulmuştur. Her sensör olayı (sıcaklık eşiği, optik engelleme, ses darbesi)
-ayrı bir donanımsal kesme vektörüne atanmıştır; bu sayede işlemci boşta kalırken
-\texttt{\_\_low\_power\_mode\_0()} durumunda bekleyebilmekte ve gereksiz güç tüketimi
-önlenmektedir.
-
-\subsection{Durum Şeması}
-
-Sistemin genel akışı aşağıdaki durum geçişleriyle modellenmiştir:
-
-\begin{center}
-\begin{tabular}{lll}
-  \toprule
-  \textbf{Durum} & \textbf{Tetikleyici} & \textbf{Geçilen Durum} \\
-  \midrule
-  \texttt{IDLE}         & İçecek sıcaklığı < eşik           & \texttt{IDLE} \\
-  \texttt{IDLE}         & İçecek sıcaklığı $\geq$ eşik      & \texttt{MUSIC\_ON} \\
-  \texttt{MUSIC\_ON}    & Jest algılama (sağ/sol)            & \texttt{MUSIC\_ON} \\
-  \texttt{MUSIC\_ON | IDLE }    & El çırpma                          & \texttt{LAMP\_TOGGLE} \\
-  \texttt{LAMP\_TOGGLE} & —                                  & \texttt{MUSIC\_ON} \\
-  \bottomrule
-\end{tabular}
-\end{center}
 
 % ════════════════════════════════════════════════════════════════════════════
 \section{Kullanılan Donanım}
@@ -158,11 +128,10 @@ Sistemin genel akışı aşağıdaki durum geçişleriyle modellenmiştir:
     \toprule
     \textbf{Bileşen}          & \textbf{Model}      & \textbf{Arayüz} \\
     \midrule
-    Ana Kontrolör             & MSP432P401R         & —         \\
+    Ana Kontrolörler             & Arduino Uno - ESP32         & —         \\
     Bluetooth Modülü          & HC-05               & UART      \\
     Sıcaklık Sensörü          & DS18B20             & 1-Wire    \\
-    Optik Sensör (jest)       & LDR çifti           & GPIO/ADC  \\
-    Mikrofon Modülü           & KY-037              & GPIO (INT)\\
+    Işık Sensörleri (jest)       & LDR çifti           & GPIO/ADC  \\
     Röle Modülü               & 5 V Röle            & GPIO      \\
     OLED Ekran                & 0.96" SSD1306       & I2C       \\
     \bottomrule
@@ -175,40 +144,26 @@ Sistemin genel akışı aşağıdaki durum geçişleriyle modellenmiştir:
 
 \subsection{Çalışma Prensibi}
 
-\textbf{DS18B20} sıcaklık sensörü, \textbf{1-Wire} protokolü üzerinden \textbf{Arduino Uno}'ya periyodik olarak sıcaklık verisi iletmektedir. Ölçüm döngüsü, ana program akışı içerisinde yazılımsal bir gecikme (\textbf{delay(2000)}) aracılığıyla 2 saniyede bir tetiklenmektedir. Sensörden okunan dijital veriler, harici bir ADC dönüşüm formülüne gerek kalmadan \textbf{DallasTemperature} kütüphanesi kullanılarak doğrudan santigrat dereceye çevrilmektedir.
+\textbf{DS18B20} sıcaklık sensörü, \textbf{1-Wire} protokolü üzerinden \textbf{Arduino Uno}'ya periyodik olarak ölçülen sıcaklık derecesini iletmektedir. Ölçüm döngüsü, ana program akışı içerisinde yazılımsal bir gecikme (\textbf{delay(2000)}) aracılığıyla 2 saniyede bir tetiklenmektedir. Sensörden okunan dijital veriler, harici bir ADC dönüşüme gerek kalmadan \textbf{DallasTemperature} kütüphanesi kullanılarak doğrudan santigrat dereceye çevrilmektedir.
 \\ \\
-Dönüştürülen bu değer, sistemde belirlenen hedef sıcaklık eşiği (örneğin 10°C) ile kıyaslanmaktadır. Sıcaklık eşiğinin altına inildiğinde ve ilgili bayrak değişkeni (\textbf{sarkiCalindi} ) kontrol edildiğinde sistem bekleme durumundan çıkarak \textbf{Bluetooth} modülünü tetikler.
+Dönüştürülen bu değer, sistemde belirlenen hedef sıcaklık eşiği (örneğin 10°C) ile kıyaslanmaktadır. Sıcaklık limitinin altına inildiğinde ve ilgili bayrak değişkeni (\textbf{sarkiCalindi} ) kontrol edildiğinde sistem bekleme durumundan çıkarak \textbf{Bluetooth} modülünü tetikler.
 
+\subsection{Devre Şeması}
+
+
+\begin{figure}[H]
+  \centering
+    \resizebox{\textwidth}{!}{\includegraphics{a.png}}
+  \caption{Soğuk Algılama ve Müzik Açma Devre Şeması}
+  \label{fig:devre_semasi}
+\end{figure}
 \subsection{Bluetooth Haberleşmesi (HC-05 / UART)}
 
-Sistemdeki haberleşme, donanımsal çakışmaları ve zamanlama hatalarını önlemek amacıyla \textbf{SoftwareSerial} kütüphanesi kullanılarak \textbf{D10 (RX)} ve \textbf{D11 (TX) }pinleri üzerinden 9600 baud hızında gerçekleştirilmektedir. Sıcaklık eşiği aşıldığında \textbf{HC-05} modülü üzerinden "\textbf{PLAY\_MUSIC}" komutu gönderilmektedir. Bilgisayar ortamında arka planda çalışan Python uygulaması (\textbf{pyserial} ve \textbf{spotipy} kütüphaneleri ile) bu portu dinlemekte ve komutu yakaladığı an yetkilendirilmiş API üzerinden Spotify medyasını otonom olarak başlatmaktadır.
-
-\subsection{Kritik Kod Parçacığı}
-
-\begin{lstlisting}[style=cstyle, caption={Sıcaklık eşiği kontrolü ve UART tetiklemesi}]
-void loop() {
-  sensors.requestTemperatures(); 
-  float anlikSicaklik = sensors.getTempCByIndex(0);
-
-  // Sicaklik limiti kontrolu ve UART uzerinden Python'u tetikleme
-  if (anlikSicaklik <= hedefSicaklik && !sarkiCalindi && anlikSicaklik > -50.0) {
-    display.setTextSize(1);
-    display.setCursor(0, 50);
-    display.println("Soguk! Muzik Caliyor");
-    
-    btSerial.println("PLAY_MUSIC"); // HC-05 uzerinden komut gonder
-    sarkiCalindi = true; 
-  } 
-  
-  display.display();
-  delay(2000); 
-}
-\end{lstlisting}
+Sistemdeki haberleşme \textbf{SoftwareSerial} kütüphanesi kullanılarak \textbf{D10 (RX)} ve \textbf{D11 (TX) }pinleri üzerinden 9600 baud hızında yapılmıştır. Sıcaklık eşiği aşıldığında \textbf{HC-05} modülü üzerinden "\textbf{PLAY\_MUSIC}" komutu gönderilmektedir. Bilgisayar ortamında arka planda çalışan Python uygulaması (\textbf{pyserial} ve \textbf{spotipy} kütüphaneleri ile) bu portu dinlemekte ve komutu yakaladığı an token ile yetkilendirilmiş API üzerinden Spotify'da olan şarkıyi otonom olarak başlatmaktadır.
 
 \subsection{Kalibrasyon ve Test Sonuçları}
 
-Sensör verileri, Arduino IDE Seri Port Ekranı ve I2C protokolüyle çalışan \textbf{ 0.96" OLED}  ekran üzerinden anlık olarak doğrulanmıştır. Oda sıcaklığında yapılan testlerde hedef sıcaklık eşiği yazılımsal olarak manipüle edilmiş, ayrıca buzlu su teması ile doğrudan fiziksel testler gerçekleştirilmiştir. Bu testler sonucunda \textbf{Bluetooth UART} komutunun terminale kayıpsız düştüğü ve bilgisayar üzerindeki Python kodunun müziği anında başlattığı doğrulanmıştır.
-
+Sensörden gelen veriler, Arduino IDE Seri Port Ekranı ve I2C protokolüyle çalışan \textbf{ 0.96" OLED}  ekran üzerine yansıtılıp, bu veriler kontrol edildi.. Oda sıcaklığında yapılan testlerde hedef sıcaklık limiti kod üzerinde değiştirilerek ve ek olarak sıcaklık sensörü soğuk suya koyularak,  farklı testler gerçekleştirilmiştir. Bu testler sonucunda \textbf{Bluetooth UART} komutunun terminale kayıpsız ulaştığını ve bilgisayar üzerindeki Python kodunun müziği anında başlattığı doğrulanmıştır.
 
 % ════════════════════════════════════════════════════════════════════════════
 \section{Özellik 2: Temassız Jest Kontrolü ile Müzik Değiştirme}
@@ -216,246 +171,79 @@ Sensör verileri, Arduino IDE Seri Port Ekranı ve I2C protokolüyle çalışan 
 
 \subsection{Çalışma Prensibi}
 
-İki adet LDR (ışığa bağlı direnç) sensörü birbirinden $d = 5\,\mathrm{cm}$ mesafede
-yerleştirilmiştir. El sensörün üzerinden geçtiğinde her LDR sırayla gölgelenir;
-gölgelenme zaman farkı ($\Delta t$) elin hareket \textit{yönünü} belirler:
+İki adet LDR sensörü birbirinden tutarlı bir mesafede
+yerleştirilmiştir. Bu sensörler, sistem başlarken ve her 30 saniyede ortam parlaklığının eşik değerini ölçme görevini üstlenir. Jest sırasında her iki LDR sensörü için o anki ölçülen parlaklık eşik değerinin altındaysa jest algılanır ve hangi LDR sensörünün ilk tetiklendiğine göre komut belirlenir:
 
 \begin{itemize}[leftmargin=*]
-  \item $\Delta t > 0$ (Sol $\to$ Sağ): Bir sonraki şarkıya geç $\to$ \texttt{NEXT}
-  \item $\Delta t < 0$ (Sağ $\to$ Sol): Önceki şarkıya geç $\to$ \texttt{PREV}
+  \item Sol $\to$ Sağ: Bir sonraki şarkıya geç $\to$ \texttt{NEXT}
+  \item Sağ $\to$ Sol: Önceki şarkıya geç $\to$ \texttt{PREV}
 \end{itemize}
 
-\subsection{Çift-Kapı Doğrulama Algoritması}
+\subsection{Jest Algılama Kontrolleri}
 
-Ortamdaki ani ışık değişimlerinin yanlış jest olarak algılanmaması için
-\textbf{çift-kapı doğrulama} mekanizması uygulanmıştır:
+Ortamdaki ani ışık değişimlerinin yanlış jest olarak algılanmaması için bazı parametreler belirlenmiştir:
 
 \begin{enumerate}[leftmargin=*, label=\arabic*.]
   \item İlk LDR tetiklendiğinde donanımsal zamanlayıcı başlatılır.
-  \item İkinci LDR belirlenen $t_{\max} = 300\,\mathrm{ms}$ penceresi içinde
+  \item İkinci LDR belirlenen $t_{\max} = 800\,\mathrm{ms}$ penceresi içinde
         tetiklenirse jest geçerli sayılır.
   \item Pencere süresi aşılırsa olay görmezden gelinir ve zamanlayıcı sıfırlanır.
+
+Kodda kullanılan 800 ms test sonucu gözlemlerle belirlenmiştir.
 \end{enumerate}
 
-\subsection{Kritik Kod Parçacığı}
 
-\begin{lstlisting}[style=cstyle, caption={Çift-kapı jest doğrulama mantığı}]
-// GPIO ISR - LDR1 tetiklendi
-void PORT3_IRQHandler(void) {
-    uint32_t status = P3->IFG;
-    P3->IFG = 0;
+\subsection{Spotipy}
 
-    if (status & LDR1_PIN) {
-        t_ldr1 = Timer32_GetValue(TIMER32_0_BASE);
-        ldr1_triggered = true;
-    }
-    if (status & LDR2_PIN && ldr1_triggered) {
-        uint32_t delta = t_ldr1 - Timer32_GetValue(TIMER32_0_BASE);
-        if (delta < MAX_GESTURE_TICKS) {
-            // Gecerli jest - yonu belirle ve komut gonder
-            if (ldr1_first) UART_SendString("NEXT\r\n");
-            else            UART_SendString("PREV\r\n");
-        }
-        ldr1_triggered = false;
-    }
-}
-\end{lstlisting}
+LDR sensörleri tarafından algılanan komut OLED ekrana basılır ve aynı zamanda çalışan python koduyla Spotify API ile iletişim başlatılır. \texttt{NEXT} komutu ile birlikte \textbf{halihazırda çalan şarkı} değiştirilir ve bir sonraki şarkıya geçilir. \texttt{PREV} komutu ise bir önceki şarkıya geçişi sağlar. LDR sensörleri tarafından algılanan komut ve Spotify API iletişimi Bluetooth bağlantısı sayesinde gerçekleşir.
 
-\subsection{Test Sonuçları}
-
-50 tekrarlı test gerçekleştirilmiş; doğruluk oranı \%94 olarak ölçülmüştür.
-Hatalı algılamaların tamamı $\Delta t > 280\,\mathrm{ms}$ sınır bölgesindeki
-yavaş el hareketlerinden kaynaklanmıştır.
-
+\begin{figure}[H]
+  \centering
+    \resizebox{\textwidth}{!}{\includegraphics{b.png}}
+  \caption{Temassız Jest Kontrolü ile Müzik Değiştirme Devre Şeması}
+  \label{fig:devre_semasi2}
+\end{figure}
 % ════════════════════════════════════════════════════════════════════════════
 \section{Özellik 3: Akustik Lamba Kontrolü}
 % ════════════════════════════════════════════════════════════════════════════
 
 \subsection{Çalışma Prensibi}
 
-KY-037 mikrofon modülü, ses sinyalinin genliği belirli bir eşiği aştığında dijital
-çıkışını \texttt{HIGH} yapar. MSP432, bu pini harici kesme (External Interrupt) olarak
-izlemektedir. El çırpma sesi algılandığında röle modülü \textit{toggle} edilerek
-lamba açılır veya kapatılır.
+KY-037 mikrofon modülü analog çıkışı (A0) üzerinden Arduino Uno'ya sürekli ses verisi iletmektedir. Arduino her döngüde \texttt{analogRead()} ile 0--1023 aralığında bir değer okur ve bu değeri yazılımsal eşik (45) ile karşılaştırır. Eşiği aşan ses algılandığında alkış sayacı güncellenir; 1 saniyelik karar penceresi sonunda alkış sayısına göre işlem yapılır.
 
-\subsection{Gürültü Filtreleme}
+Tek alkışta lamba açılıp kapatılır. Çift alkışta ise lamba açıksa parlaklık kademesi değiştirilir. Parlaklık kontrolü Arduino'nun D9 PWM pini üzerinden IRF520 MOSFET modülüne sinyal gönderilerek sağlanır. MOSFET modülü 12V DC adaptörden beslenen LED lambayı sürer.
 
-Normal konuşma sesi ($\approx 60\,\mathrm{dB}$) ile el çırpma sesinin
-($\approx 80\,\mathrm{dB}$) ayrıştırılması iki aşamalı bir yöntemle sağlanmıştır:
+\subsection{Tek/Çift Alkış Algoritması}
 
 \begin{enumerate}[leftmargin=*, label=\arabic*.]
-  \item \textbf{Donanımsal Eşikleme:} Mikrofon üzerindeki potansiyometre,
-        yalnızca el çırpma düzeyindeki genliklerin tetikleme yapacağı şekilde
-        kalibre edilmiştir.
-  \item \textbf{Yazılımsal Bekleme Süresi (Debounce):} Kesme sonrası
-        $t_{\mathrm{debounce}} = 200\,\mathrm{ms}$ boyunca yeni kesme kabul
-        edilmemektedir; böylece eko ve çoklu darbe sorunları önlenmektedir.
+  \item Ses eşiği aşıldığında \texttt{firstClap} zamanı kaydedilir, \texttt{clapCount} 1 yapılır.
+  \item 1 saniyelik pencere içinde ikinci alkış gelirse \texttt{clapCount} 2 yapılır.
+  \item 1 saniye dolunca karar verilir: 1 ise aç/kapat, 2 ise kademe değişimi.
+  \item Ardışık darbeleri önlemek için 200 ms debounce uygulanır.
 \end{enumerate}
 
-\subsection{Kritik Kod Parçacığı}
+\subsection{Parlaklık Kademeleri}
 
-\begin{lstlisting}[style=cstyle, caption={Ses kesmesi ve röle toggle mantığı}]
-volatile bool lamp_on = false;
-volatile bool clap_ready = true;   // debounce bayragi
+Eşik değeri belirlendikten sonra ölçülen değer eşik değerinin \%80'nin altında ise jest başladı/devam etmekte olarak algılanır ve LDR sensörleri tetiklenir.
 
-// Mikrofon GPIO ISR
-void PORT5_IRQHandler(void) {
-    P5->IFG = 0;
-
-    if (!clap_ready) return;       // debounce aktifse yoksay
-
-    // Lambay toggle et
-    lamp_on = !lamp_on;
-    if (lamp_on) P6->OUT |=  RELAY_PIN;
-    else         P6->OUT &= ~RELAY_PIN;
-
-    // 200 ms debounce - Timer32 ile
-    clap_ready = false;
-    Timer32_setCount(TIMER32_1_BASE, DEBOUNCE_TICKS);
-    Timer32_startTimer(TIMER32_1_BASE, true);
-}
-
-// Debounce zamanlayici ISR
-void T32_INT2_IRQHandler(void) {
-    Timer32_clearInterruptFlag(TIMER32_1_BASE);
-    clap_ready = true;
-}
-\end{lstlisting}
-
-\subsection{Güvenlik Önlemleri}
-
-Lamba bağlantısı izole bir röle kutusu içine alınmıştır. Geliştirme ve test
-aşamasındaki ilk denemeler 12\,V DC düşük akımlı devreler üzerinde yürütülmüş;
-yalnızca doğrulama sonrası 220\,V AC devresine geçilmiştir.
-
-% ════════════════════════════════════════════════════════════════════════════
-\section{Donanım Bağlantı Şeması}
-% ════════════════════════════════════════════════════════════════════════════
-
-\begin{figure}[H]
-  \centering
-  % Gerçek devre şeması buraya eklenecek:
-  % \includegraphics[width=0.9\textwidth]{devre.png}
-  \fbox{\rule{0pt}{6cm}\rule{0.9\textwidth}{0pt}}
-  \caption{Tam Devre Bağlantı Şeması}
-  \label{fig:devre}
-\end{figure}
-
-\begin{table}[H]
-  \centering
-  \caption{MSP432 Pin Atama Tablosu}
-  \label{tab:pinler}
-  \begin{tabular}{llll}
-    \toprule
-    \textbf{Bileşen}  & \textbf{MSP432 Pini} & \textbf{Yön}  & \textbf{Protokol} \\
-    \midrule
-    DS18B20           & P2.0                 & Giriş/Çıkış   & 1-Wire       \\
-    HC-05 TX          & P3.2 (UCA2RXD)       & Giriş         & UART         \\
-    HC-05 RX          & P3.3 (UCA2TXD)       & Çıkış         & UART         \\
-    LDR-1             & P3.4                 & Giriş         & GPIO INT     \\
-    LDR-2             & P3.5                 & Giriş         & GPIO INT     \\
-    KY-037 (DO)       & P5.1                 & Giriş         & GPIO INT     \\
-    Röle              & P6.0                 & Çıkış         & GPIO         \\
-    OLED SDA          & P6.4 (UCB1SDA)       & Giriş/Çıkış   & I2C          \\
-    OLED SCL          & P6.5 (UCB1SCL)       & Çıkış         & I2C          \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-% ════════════════════════════════════════════════════════════════════════════
-\section{Test ve Doğrulama}
-% ════════════════════════════════════════════════════════════════════════════
-
-\subsection{Test Yöntemi}
-
-Her özellik kendi alt sistemi içinde birim test edilmiş, ardından tüm sistem
-entegre çalıştırılmıştır.
-
-\subsection{Test Sonuçları Özeti}
-
-\begin{table}[H]
-  \centering
-  \caption{Test Sonuçları}
-  \begin{tabular}{lccc}
-    \toprule
-    \textbf{Test Senaryosu}          & \textbf{Deneme} & \textbf{Başarı} & \textbf{Oran} \\
-    \midrule
-    Sıcaklık eşiği algılama          & 20              & 20              & \%100 \\
-    Bluetooth müzik başlatma          & 20              & 19              & \%95  \\
-    Jest -- sağa kaydırma            & 25              & 24              & \%96  \\
-    Jest -- sola kaydırma            & 25              & 23              & \%92  \\
-    Lamba açma (el çırpma)           & 30              & 29              & \%97  \\
-    Yanlış tetikleme (konuşma sesi)  & 20              & 0               & \%0   \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-% ════════════════════════════════════════════════════════════════════════════
-\section{Karşılaşılan Problemler ve Çözümler}
-% ════════════════════════════════════════════════════════════════════════════
-
-\begin{table}[H]
-  \centering
-  \caption{Karşılaşılan Teknik Sorunlar}
-  \begin{tabular}{p{4cm}p{5.5cm}p{4cm}}
-    \toprule
-    \textbf{Sorun}           & \textbf{Belirtisi}                          & \textbf{Çözüm} \\
-    \midrule
-    Ortam gürültüsü          & Konuşma sesi lambayı tetikliyordu           & Potansiyometre kalibrasyonu + 200\,ms debounce \\
-    Optik yanılsama          & Ani ışık değişimi jest olarak algılandı     & Çift-kapı doğrulama ($t_{\max}=300\,\mathrm{ms}$) \\
-    UART iletişim gecikmesi  & Bluetooth geç bağlanıyordu                  & HC-05 baud hızı doğrulaması ve bekleme döngüsü \\
-    Röle titremesi           & Kesme sınırında lamba sürekli toggling      & Yazılımsal kilit mekanizması \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-% ════════════════════════════════════════════════════════════════════════════
-\section{Zaman Planı ve Sprint Özeti}
-% ════════════════════════════════════════════════════════════════════════════
-
-\begin{table}[H]
-  \centering
-  \caption{Sprint Planı}
-  \begin{tabular}{clp{8cm}}
-    \toprule
-    \textbf{Sprint} & \textbf{Tarih} & \textbf{Tamamlanan İşler} \\
-    \midrule
-    1 & Hafta 1 & Donanım temini, DS18B20 kalibrasyonu, LDR eşik testleri \\
-    2 & Hafta 2 & Durum makinesi kodlaması, Timer kesmeleri, röle prototipleme \\
-    3 & Hafta 3 & HC-05/macOS entegrasyonu, eş zamanlılık ve kararlılık testleri \\
-    \bottomrule
-  \end{tabular}
-\end{table}
 
 % ════════════════════════════════════════════════════════════════════════════
 \section{Sonuç}
 % ════════════════════════════════════════════════════════════════════════════
 
-Bu proje kapsamında, MSP432 mikrodenetleyici üzerinde kesme tabanlı çoklu sensör
-entegrasyonu başarıyla gerçeklenmiştir. Üç temel işlev (sıcaklık tabanlı müzik
+Bu proje kapsamında, Arduino Uno ve ESP32 mikrodenetleyicileri üzerinde Bluetooth bağlantısı kullanılarak Spotify API tetikleyen bir sistem geliştirilmiştir. Üç temel işlev (sıcaklık tabanlı müzik
 başlatma, temassız jest kontrolü ve akustik lamba yönetimi) birbirinden bağımsız
-alt sistemler olarak tasarlanmış; ortak bir durum makinesi çatısı altında
-eş zamanlı ve kararlı biçimde çalıştırılmıştır. Test sonuçları, tüm özelliklerin
-\%92'nin üzerinde başarı oranına ulaştığını göstermektedir.
+alt sistemler olarak tasarlanmış; ortak bir Spotify hesabı çatısı altında, her işlem başka bir sistemi tetikleyecek bir şekilde düzen kurulmuştur.
 
-% ════════════════════════════════════════════════════════════════════════════
-\section*{Kaynaklar}
-% ════════════════════════════════════════════════════════════════════════════
 
-\begin{enumerate}[label={[\arabic*]}]
-  \item Texas Instruments, \textit{MSP432P4xx SimpleLink™ Microcontrollers Technical Reference Manual}, 2017.
-  \item Maxim Integrated, \textit{DS18B20 Programmable Resolution 1-Wire Digital Thermometer Datasheet}, 2019.
-  \item HC-05 Bluetooth Module AT Command Reference, \url{https://components101.com/wireless/hc-05-bluetooth-module}.
-  \item KY-037 Sound Sensor Module Datasheet, \url{https://arduinomodules.info/ky-037-microphone-sound-sensor-module/}.
-\end{enumerate}
 
 % ════════════════════════════════════════════════════════════════════════════
 \appendix
-\section{Tam Kaynak Kodu}
+\section{ Kaynak Kodu}
 % ════════════════════════════════════════════════════════════════════════════
 
-Projenin tüm kaynak kodları aşağıdaki GitHub deposunda yer almaktadır:\\
-\url{https://github.com/KULLANICI-ADI/akilli-ekosistem}
+Projenin  kaynak kodları aşağıdaki GitHub deposunda yer almaktadır:\\
+\url{https://github.com/sanberkkk/Micro.git}
 
 % İsteğe bağlı: Kodları doğrudan buraya eklemek için aşağıdaki yapıyı kullanın:
 % \lstinputlisting[style=cstyle, caption={main.c}]{../src/main.c}
